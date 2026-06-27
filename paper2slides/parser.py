@@ -50,18 +50,54 @@ class PaperParser:
         return ""
 
     def extract_abstract(self, text: str) -> str:
-        """Extract abstract text using a simple rule-based approach."""
+        """Extract abstract text from English or Japanese papers."""
+        keywords = [
+            "abstract",
+            "概要",
+            "要旨",
+            "抄録",
+            "summary",
+        ]
+
+        end_keywords = [
+            "1 introduction",
+            "1. introduction",
+            "introduction",
+            "1 はじめに",
+            "1. はじめに",
+            "はじめに",
+            "キーワード",
+            "keywords",
+        ]
+
         lower_text = text.lower()
 
-        start = lower_text.find("abstract")
+        start = -1
+        matched_keyword = ""
+
+        for keyword in keywords:
+            index = lower_text.find(keyword.lower())
+            if index != -1:
+                start = index
+                matched_keyword = keyword
+                break
+
         if start == -1:
             return ""
 
-        intro = lower_text.find("introduction", start)
-        if intro == -1:
-            return text[start:start + 2000].strip()
+        search_area = lower_text[start + len(matched_keyword):]
 
-        return text[start:intro].strip()
+        end_positions = []
+        for keyword in end_keywords:
+            index = search_area.find(keyword.lower())
+            if index != -1:
+                end_positions.append(index)
+
+        if end_positions:
+            end = start + len(matched_keyword) + min(end_positions)
+            return text[start:end].strip()
+
+        return text[start:start + 2000].strip()
 
     def parse(self, pdf_path: str | Path) -> Paper:
         """Parse a PDF into a Paper object."""
