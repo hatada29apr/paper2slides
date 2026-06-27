@@ -1,11 +1,12 @@
+from paper2slides.exporter import export_paper_json
 from paper2slides.parser import PaperParser
 
 parser = PaperParser()
 paper = parser.parse("examples/sample.pdf")
 
-print("Title:", paper.title)
-print("Abstract:", paper.abstract[:500])
-print("Sections:", len(paper.sections))
+output_path = export_paper_json(paper, "output/paper.json")
 
-for section in paper.sections[:5]:
-    print("-", section.title)
+print("Title:", paper.title)
+print("Abstract:", paper.abstract[:300])
+print("Sections:", len(paper.sections))
+print("Exported:", output_path)
