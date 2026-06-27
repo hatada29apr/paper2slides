@@ -74,19 +74,33 @@ class PaperParser:
         return pages
 
     def extract_title(self, doc: fitz.Document) -> str:
-        """Extract title from PDF metadata or first page."""
+        """Extract title using metadata first, then first-page font size."""
         metadata_title = (doc.metadata or {}).get("title", "").strip()
 
         if metadata_title:
             return metadata_title
 
-        lines = [line.strip() for line in doc[0].get_text("text").splitlines() if line.strip()]
+        layout = self.extract_layout(doc)
 
-        for line in lines:
-            if len(line) > 10:
-                return line
+        if not layout:
+            return ""
 
-        return ""
+        first_page_blocks = layout[0]["blocks"]
+
+        if not first_page_blocks:
+            return ""
+
+        max_size = max(block["size"] for block in first_page_blocks)
+
+        title_lines = [
+            block["text"]
+            for block in first_page_blocks
+            if block["size"] >= max_size - 0.5
+        ]
+
+        title = " ".join(title_lines).strip()
+
+        return title
 
     def extract_abstract(self, text: str) -> str:
         """Extract abstract text from English or Japanese papers."""
@@ -173,11 +187,11 @@ class PaperParser:
         lines = [line.strip() for line in text.splitlines() if line.strip()]
 
         heading_patterns = [
-            r"^\d+\s+[A-Z][A-Za-z0-9 ,:&\-]+$",
-            r"^\d+\.\d+\s+[A-Z][A-Za-z0-9 ,:&\-]+$",
-            r"^(Introduction|Background|Related Work|Method|Methods|Experiments|Experimental Evaluation|Results|Discussion|Conclusion|References)$",
+            r"^[1-9]\d?\s+[A-Z][A-Za-z0-9 ,:&\-]{3,80}$",
+            r"^[1-9]\d?\.\d+\s+[A-Z][A-Za-z0-9 ,:&\-]{3,80}$",
+            r"^(Introduction|Background|Related Work|Method|Methods|Experiments|Results|Discussion|Conclusion)$",
         ]
-
+                        
         sections: list[Section] = []
         current_section: Section | None = None
 
@@ -187,6 +201,9 @@ class PaperParser:
             if re.match(r"^\d+\s+(initialize|update|return|let|if|while)\b", line.lower()):
                 is_heading = False
 
+            if line.lower() in {"abstract", "references"}:
+                is_heading = False
+                
             if is_heading:
                 if current_section is not None:
                     sections.append(current_section)
